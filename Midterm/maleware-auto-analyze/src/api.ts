@@ -189,4 +189,27 @@ export class CuckooClient {
       }
     }
   }
+
+  public async deleteTask(taskId: number): Promise<void> {
+    try {
+      const url = new URL(`/tasks/delete/${taskId}`, this.apiBaseUrl);
+
+      const response = await axios.get(url.toString(), {
+        headers: this.getHeaders(),
+      });
+      if (response.status !== 200) {
+        throw new TaskStatusError(
+          `Failed to delete task ${taskId}. Status code: ${response.status}`
+        );
+      }
+    } catch (error) {
+      if (error instanceof Error) {
+        throw new TaskStatusError(
+          `Error deleting task ${taskId}: ${error.message}`
+        );
+      } else {
+        throw error;
+      }
+    }
+  }
 }

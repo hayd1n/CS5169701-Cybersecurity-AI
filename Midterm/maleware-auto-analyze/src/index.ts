@@ -73,6 +73,8 @@ if (skipExists) {
   );
 }
 
+const MAX_CONCURRENT_TASKS = 4;
+
 const API_BASE_URL = "http://192.168.2.128:8090/";
 const API_TOKEN = "UdC5HKZB1aruy8e-Giv_fg";
 
@@ -81,18 +83,21 @@ const client = new CuckooClient(API_TOKEN, API_BASE_URL);
 const runningTasks: TaskInfo[] = [];
 const tasks: TaskInfo[] = [];
 
-// Upload all files
-for (const maleware of malewareBinaries) {
-  console.log(`Uploading ${maleware.name}...`);
-  const taskId = await client.uploadAndAnalyzeFile(maleware.path);
-  console.log(`Task ${taskId} created for ${maleware.name}`);
-  tasks.push({ taskId, name: maleware.name });
-}
+// // Upload all files
+// for (const maleware of malewareBinaries) {
+//   console.log(`Uploading ${maleware.name}...`);
+//   const taskId = await client.uploadAndAnalyzeFile(maleware.path);
+//   console.log(`Task ${taskId} created for ${maleware.name}`);
+//   tasks.push({ taskId, name: maleware.name });
+// }
 
-// Add all tasks to runningTasks
-runningTasks.push(...tasks);
+// // Add all tasks to runningTasks
+// runningTasks.push(...tasks);
 
-while (runningTasks.length > 0) {
+const waitingRun = [...malewareBinaries];
+
+// Run until all tasks are completed
+while (waitingRun.length > 0 || runningTasks.length > 0) {
   // Extract the tasks that belong to me
   const myTasks = (await client.getTaskList()).filter((task) =>
     tasks.some((t) => t.taskId === task.id)
@@ -127,9 +132,18 @@ while (runningTasks.length > 0) {
     await client.downloadReportAndPcap(task.id, outputFolder);
     console.log(`Report for task ${task.id} downloaded to ${outputFolder}`);
 
+    // Delete the task
+    await client.deleteTask(task.id);
+    console.log(`Task ${task.id} deleted`);
+
     // Remove the task from runningTasks
     runningTasks.splice(
       runningTasks.findIndex((t) => t.taskId === task.id),
+      1
+    );
+    // Remove the task from waitingRun
+    waitingRun.splice(
+      waitingRun.findIndex((t) => t.name === name),
       1
     );
   }
@@ -142,12 +156,37 @@ while (runningTasks.length > 0) {
   );
   const myReportedTasks = myTasks.filter((task) => task.status === "reported");
 
+  // Calculate the waiting tasks
+  const runningTakasLength =
+    myPendingTasks.length + myRunningTasks.length + myCompletedTasks.length;
+
+  // Calculate the free slots
+  const freeSlots = MAX_CONCURRENT_TASKS - runningTakasLength;
+
+  // Extract the tasks that can run
+  const malewaresToRun = waitingRun.splice(0, freeSlots);
+
+  // Upload files
+  for (const maleware of malewaresToRun) {
+    console.log(`Uploading ${maleware.name}...`);
+    const taskId = await client.uploadAndAnalyzeFile(maleware.path);
+    console.log(`Task ${taskId} created for ${maleware.name}`);
+    const newTask = { taskId, name: maleware.name };
+    tasks.push(newTask);
+    runningTasks.push(newTask);
+  }
+
   const completedRate = Math.round(
-    (myReportedTasks.length / myTasks.length) * 100
+    ((malewareBinaries.length - waitingRun.length - runningTasks.length) /
+      malewareBinaries.length) *
+      100
   );
 
   console.log(
-    `Total: ${tasks.length} | Pending: ${myPendingTasks.length} | Running: ${myRunningTasks.length} | Completed: ${myCompletedTasks.length} | Reported: ${myReportedTasks.length} | Completed Rate: ${completedRate}%`
+    `Debug: MalewareList: ${malewareBinaries.length}| WaitingList: ${waitingRun.length} | RunningList: ${runningTasks.length} | TasksList: ${tasks.length} | Completed Rate: ${completedRate}%`
+  );
+  console.log(
+    `API: Pending: ${myPendingTasks.length} | Running: ${myRunningTasks.length} | Completed: ${myCompletedTasks.length} | Reported: ${myReportedTasks.length}`
   );
 
   await sleep(1000);
