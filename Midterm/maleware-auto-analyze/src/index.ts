@@ -141,11 +141,6 @@ while (waitingRun.length > 0 || runningTasks.length > 0) {
       runningTasks.findIndex((t) => t.taskId === task.id),
       1
     );
-    // Remove the task from waitingRun
-    waitingRun.splice(
-      waitingRun.findIndex((t) => t.name === name),
-      1
-    );
   }
 
   // Get the status of all tasks
@@ -183,7 +178,7 @@ while (waitingRun.length > 0 || runningTasks.length > 0) {
   );
 
   console.log(
-    `Debug: MalewareList: ${malewareBinaries.length}| WaitingList: ${waitingRun.length} | RunningList: ${runningTasks.length} | TasksList: ${tasks.length} | Completed Rate: ${completedRate}%`
+    `Debug: MalewareList: ${malewareBinaries.length} | WaitingList: ${waitingRun.length} | RunningList: ${runningTasks.length} | TasksList: ${tasks.length} | Completed Rate: ${completedRate}%`
   );
   console.log(
     `API: Pending: ${myPendingTasks.length} | Running: ${myRunningTasks.length} | Completed: ${myCompletedTasks.length} | Reported: ${myReportedTasks.length}`
